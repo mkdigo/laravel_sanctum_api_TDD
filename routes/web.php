@@ -13,14 +13,3 @@ use App\Http\Controllers\CustomerController;
 | contains the "web" middleware group. Now create something great!
 |
 */
-
-Route::get('/', function () {
-  return view('welcome');
-});
-
-Route::get('/login', function () {
-  return view('welcome');
-})->name('login');
-
-Route::get('/customers', [CustomerController::class, 'index'])->middleware('auth');
-

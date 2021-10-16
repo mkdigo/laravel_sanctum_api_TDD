@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use Exception;
 use App\Models\User;
+use App\Helpers\Helper;
+use App\Helpers\Response;
 use Illuminate\Http\Request;
+use App\Http\Resources\UserResource;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
@@ -16,7 +20,19 @@ class UserController extends Controller
   */
   public function index()
   {
-    //
+    try {
+      $users = User::orderBy('name')->get();
+
+      return response()->json([
+        'success' => true,
+        'users' => UserResource::collection($users),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => $e->getMessage(),
+      ], 500);
+    }
   }
 
   /**
@@ -27,29 +43,27 @@ class UserController extends Controller
   */
   public function store(Request $request)
   {
-    $data = $request->only('name', 'email', 'password');
+    try {
+      [$data, $validator] = Helper::userValidator($request);
 
-    $validator = Validator::make($data, [
-      'name' => 'required|string|max:191',
-      'email' => 'required|email',
-      'password' => 'required|string|max:191',
-    ]);
+      if($validator->fails()) {
+        return Response::validatorErrorsToMessage($validator);
+      }
 
-    if($validator->fails()) {
+      $data['password'] = Hash::make($data['password']);
+
+      $user = User::create($data);
+
+      return response()->json([
+        'success' => true,
+        'user' => new UserResource($user),
+      ], 201);
+    } catch (Exception $e) {
       return response()->json([
         'success' => false,
-        'errors' => $validator->errors(),
-      ], 400);
+        'message' => $e->getMessage(),
+      ], 500);
     }
-
-    $data['password'] = Hash::make($data['password']);
-
-    $user = User::create($data);
-
-    return response()->json([
-      'success' => true,
-      'user' => $user,
-    ], 201);
   }
 
   /**
@@ -60,18 +74,19 @@ class UserController extends Controller
   */
   public function show($id)
   {
-    //
-  }
+    try {
+      $user = User::findOrFail($id);
 
-  /**
-  * Show the form for editing the specified resource.
-  *
-  * @param  int  $id
-  * @return \Illuminate\Http\Response
-  */
-  public function edit($id)
-  {
-    //
+      return response()->json([
+        'success' => true,
+        'user' => new UserResource($user),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => $e->getMessage(),
+      ], 500);
+    }
   }
 
   /**
@@ -83,7 +98,27 @@ class UserController extends Controller
   */
   public function update(Request $request, $id)
   {
-    //
+    try {
+      $user = User::findOrFail($id);
+
+      if(auth('sanctum')->user()->id !== $user->id) return Response::unauthorized();
+
+      [$data, $validator] = Helper::userValidator($request, 'update', $user);
+
+      if($validator->fails()) return Response::validatorErrorsToMessage($validator);
+
+      $user->update($data);
+
+      return response()->json([
+        'success' => true,
+        'user' => new UserResource($user),
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => $e->getMessage(),
+      ], 500);
+    }
   }
 
   /**
@@ -94,6 +129,21 @@ class UserController extends Controller
   */
   public function destroy($id)
   {
-    //
+    try {
+      $user = User::findOrFail($id);
+
+      if(auth('sanctum')->user()->id !== $user->id) return Response::unauthorized();
+
+      $user->delete();
+
+      return response()->json([
+        'success' => true,
+      ]);
+    } catch (Exception $e) {
+      return response()->json([
+        'success' => false,
+        'message' => $e->getMessage(),
+      ], 500);
+    }
   }
 }

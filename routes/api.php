@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 
 /*
@@ -15,8 +16,14 @@ use App\Http\Controllers\UserController;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
-
+Route::post('/auth/login', [AuthController::class, 'getToken']);
 Route::post('/users', [UserController::class, 'store']);
+
+Route::middleware(['auth:sanctum'])->group(function() {
+  Route::get('/auth/logout', [AuthController::class, 'deleteToken']);
+
+  Route::get('/users', [UserController::class, 'index']);
+  Route::get('/users/{id}', [UserController::class, 'show']);
+  Route::put('/users/{id}', [UserController::class, 'update']);
+  Route::delete('/users/{id}', [UserController::class, 'destroy']);
+});
