@@ -15,7 +15,7 @@ class UserTest extends TestCase
   private $data = [
     'name' => 'name',
     'email' => 'email@email.com',
-    'password' => '123',
+    'password' => '12345678',
   ];
 
   private function expectedUser($user)
@@ -41,15 +41,40 @@ class UserTest extends TestCase
 
     $this->assertEquals(0, count($arrayCompared_1) + count($arrayCompared_2));
 
-    return $whereAllType;
+    return [$expectedUser, $whereAllType];
+  }
+
+  public function test_list_users()
+  {
+    Sanctum::actingAs(
+      User::factory()->create()
+    );
+
+    $this->seed(UserSeeder::class);
+
+    $response = $this->get('/api/users', [
+      'Accept' => 'application/json',
+    ]);
+
+    [$expectedUser] = $this->expectedUser($response->json()['users'][0]);
+
+    $this->assertTrue($response->json()['success']);
+
+    $response->assertStatus(200)
+      ->assertJsonStructure([
+        'success',
+        'users' => [
+          '*' => $expectedUser,
+        ]
+      ]);
   }
 
   /** @test */
-  public function test_create_new_user()
+  public function test_user_create()
   {
     $response = $this->json('POST', '/api/users', $this->data);
 
-    $whereAllType = $this->expectedUser($response->json()['user']);
+    [$expectedUser, $whereAllType] = $this->expectedUser($response->json()['user']);
 
     $response->assertStatus(201)
       ->assertJson(fn (AssertableJson $json) =>
@@ -86,7 +111,7 @@ class UserTest extends TestCase
 
     $response = $this->json('PUT', '/api/users/1', $this->data);
 
-    $whereAllType = $this->expectedUser($response->json()['user']);
+    [$expectedUser, $whereAllType] = $this->expectedUser($response->json()['user']);
 
     $response->assertStatus(200)
       ->assertJson(fn (AssertableJson $json) =>
@@ -119,7 +144,7 @@ class UserTest extends TestCase
 
     $response = $this->json('GET', '/api/users/1');
 
-    $whereAllType = $this->expectedUser($response->json()['user']);
+    [$expectedUser, $whereAllType] = $this->expectedUser($response->json()['user']);
 
     $response->assertStatus(200)
       ->assertJson(fn (AssertableJson $json) =>
@@ -132,12 +157,12 @@ class UserTest extends TestCase
   public function test_user_delete()
   {
     Sanctum::actingAs(
-      User::factory()->create()
+      User::factory()->create(['is_admin' => true])
     );
 
     $this->seed(UserSeeder::class);
 
-    $response = $this->json('DELETE', '/api/users/1');
+    $response = $this->json('DELETE', '/api/admin/users/1');
 
     $response->assertStatus(200)
       ->assertJson(fn (AssertableJson $json) =>
@@ -146,47 +171,20 @@ class UserTest extends TestCase
       );
   }
 
-  public function test_check_if_user_cannot_delete_others_users()
+  public function test_user_toggle_admin_access()
   {
     Sanctum::actingAs(
-      User::factory()->create()
+      User::factory()->create(['is_admin' => true])
     );
 
     $this->seed(UserSeeder::class);
 
-    $response = $this->json('DELETE', '/api/users/2');
-
-    $response->assertStatus(401);
-  }
-
-  public function test_list_users()
-  {
-    Sanctum::actingAs(
-      User::factory()->create()
-    );
-
-    $this->seed(UserSeeder::class);
-
-    $response = $this->get('/api/users', [
-      'Accept' => 'application/json',
-    ]);
-
-    $whereAllType = $this->expectedUser($response->json()['users'][0]);
-
-    $this->assertTrue($response->json()['success']);
+    $response = $this->json('PUT', '/api/admin/users/1');
 
     $response->assertStatus(200)
-      ->assertJsonStructure([
-        'success',
-        'users' => [
-          '*' => [
-            'id',
-            'name',
-            'email',
-            'created_at',
-            'updated_at',
-          ]
-        ]
-      ]);
+      ->assertJson(fn (AssertableJson $json) =>
+        $json->whereType('success', 'boolean')
+          ->where('success', true)
+      );
   }
 }

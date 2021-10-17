@@ -104,6 +104,21 @@ class AuthTest extends TestCase
     $this->routeTest('get', '/api/users');
     $this->routeTest('get', '/api/users/1');
     $this->routeTest('put', '/api/users/1');
-    $this->routeTest('delete', '/api/users/1');
+
+    $this->routeTest('get', '/api/customers');
+    $this->routeTest('get', '/api/customers/1');
+    $this->routeTest('put', '/api/customers/1');
+  }
+
+  public function test_admin_routes()
+  {
+    Sanctum::actingAs(
+      User::factory()->create()
+    );
+
+    $this->routeTest('put', '/api/admin/users/1');
+    $this->routeTest('delete', '/api/admin/users/1');
+
+    $this->routeTest('delete', '/api/admin/customers/1');
   }
 }
